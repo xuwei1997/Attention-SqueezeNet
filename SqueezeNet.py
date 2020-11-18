@@ -1,272 +1,41 @@
-import h5py
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Activation, concatenate
-from tensorflow.keras.layers import Flatten, Dropout
-from tensorflow.keras.layers import Convolution2D, MaxPooling2D
-from tensorflow.keras.layers import AveragePooling2D
-from tensorflow.keras.utils import plot_model
+from tensorflow.keras.layers import Input,Conv2D,MaxPool2D,GlobalAveragePooling2D,Dropout
+from tensorflow.keras.layers import concatenate,Dense
+# from tensorflow.keras.utils import plot_model
 
+def fire_model(x, s_1x1, e_1x1, e_3x3, fire_name):
+    # squeeze part
+    squeeze_x = Conv2D(kernel_size=(1,1),filters=s_1x1,padding='same',activation='relu',name=fire_name+'_s1')(x)
+    # expand part
+    expand_x_1 = Conv2D(kernel_size=(1,1),filters=e_1x1,padding='same',activation='relu',name=fire_name+'_e1')(squeeze_x)
+    expand_x_3 = Conv2D(kernel_size=(3,3),filters=e_3x3,padding='same',activation='relu',name=fire_name+'_e3')(squeeze_x)
+    # expand = merge([expand_x_1, expand_x_3], mode='concat', concat_axis=3)
+    expand = concatenate([expand_x_1, expand_x_3],axis=3)
 
-# #keras2 中add应该改为 add.add
-def SqueezeNet(nb_classes,inputs=(224, 224,3)):  #此处的输入可能有错，默认输入应该为(batch, height, width, channels)
-    """ Keras Implementation of SqueezeNet(arXiv 1602.07360)
+    return expand
 
-    Arguments:
-        nb_classes: total number of final categories
-        
-        inputs -- shape of the input images (channel, cols, rows)
-    """
-
+def SqueezeNet(nb_classes,inputs=(224, 224,3)):
     input_img = Input(shape=inputs)
-    conv1 = Convolution2D(
-        96,
-        (7,7),
-        activation='relu',
-        # init='glorot_uniform',
-        # subsample=(2, 2),
-        strides= (2, 2) ,
-        padding='same',
-        data_format='channels_last',
-        name='conv1')(input_img)
-    maxpool1 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2),
-                            name='maxpool1')(conv1)
-
-    fire2_squeeze = Convolution2D(
-        16,
-        (1,1),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire2_squeeze')(maxpool1)
-    fire2_expand1 = Convolution2D(
-        64,
-        (1,1),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire2_expand1')(fire2_squeeze)
-    fire2_expand2 = Convolution2D(
-        64,
-        (3,3),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire2_expand2')(fire2_squeeze)
-
-    print(fire2_expand1.shape)
-    print(fire2_expand2.shape)
-    add2 = concatenate([fire2_expand1, fire2_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    fire3_squeeze = Convolution2D(
-        16,
-        (1,1),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire3_squeeze')(add2)
-    #    fire3_expand1 = Convolution2D(64,
-    #                                   1,
-    #                                   1,
-    #                                   activation='relu',
-    #                                   # init='glorot_uniform',
-    #                                   padding = 'same',
-    #                                   name='fire3_expand1')(fire3_squeeze)
-    fire3_expand1 = Convolution2D(
-        64,
-        (1,1),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire3_expand1')(fire3_squeeze)
-    fire3_expand2 = Convolution2D(
-        64,
-        (3,3),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire3_expand2')(fire3_squeeze)
-    add3 = concatenate([fire3_expand1, fire3_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    fire4_squeeze = Convolution2D(
-        32,
-        (1,1),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire4_squeeze')(add3)
-    fire4_expand1 = Convolution2D(
-        128,
-        (1,1),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire4_expand1')(fire4_squeeze)
-    fire4_expand2 = Convolution2D(
-        128,
-        (3,3),
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire4_expand2')(fire4_squeeze)
-    add4 = concatenate([fire4_expand1, fire4_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-    maxpool4 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2),
-                            name='maxpool4')(add4)
-
-    fire5_squeeze = Convolution2D(
-        32,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire5_squeeze')(maxpool4)
-    fire5_expand1 = Convolution2D(
-        128,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire5_expand1')(fire5_squeeze)
-    fire5_expand2 = Convolution2D(
-        128,
-        3,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire5_expand2')(fire5_squeeze)
-    add5 = concatenate([fire5_expand1, fire5_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    fire6_squeeze = Convolution2D(
-        48,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire6_squeeze')(add5)
-    fire6_expand1 = Convolution2D(
-        192,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire6_expand1')(fire6_squeeze)
-    fire6_expand2 = Convolution2D(
-        192,
-        3,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire6_expand2')(fire6_squeeze)
-    add6 = concatenate([fire6_expand1, fire6_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    fire7_squeeze = Convolution2D(
-        48,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire7_squeeze')(add6)
-    fire7_expand1 = Convolution2D(
-        192,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire7_expand1')(fire7_squeeze)
-    fire7_expand2 = Convolution2D(
-        192,
-        3,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire7_expand2')(fire7_squeeze)
-    add7 = concatenate([fire7_expand1, fire7_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    fire8_squeeze = Convolution2D(
-        64,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire8_squeeze')(add7)
-    fire8_expand1 = Convolution2D(
-        256,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire8_expand1')(fire8_squeeze)
-    fire8_expand2 = Convolution2D(
-        256,
-        3,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire8_expand2')(fire8_squeeze)
-    add8 = concatenate([fire8_expand1, fire8_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    maxpool8 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2),
-                            name='maxpool8')(add8)
-
-    fire9_squeeze = Convolution2D(
-        64,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire9_squeeze')(maxpool8)
-    fire9_expand1 = Convolution2D(
-        256,
-        1,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire9_expand1')(fire9_squeeze)
-    fire9_expand2 = Convolution2D(
-        256,
-        3,
-        activation='relu',
-        # init='glorot_uniform',
-        padding='same',
-        name='fire9_expand2')(fire9_squeeze)
-
-    add9 = concatenate([fire9_expand1, fire9_expand2],axis=1)
-    # mode='concat',
-    # concat_axis=1)
-
-    fire9_dropout = Dropout(0.5, name='fire9_dropout')(add9)
-    conv10 = Convolution2D(
-        nb_classes,
-        1,
-        # init='glorot_uniform',
-        # border_mode='valid',
-        padding='valid',
-        name='conv10')(fire9_dropout)
-    # The size should match the output of conv10
-    avgpool10 = AveragePooling2D((13, 13), name='avgpool10')(conv10)
-
-    flatten = Flatten(name='flatten')(avgpool10)
-    softmax = Activation("softmax", name='softmax')(flatten)
-
-    return Model(inputs=input_img, outputs=softmax)
-    return Model()
-    # return Model(input=input_img, output=conv10)
-
+    conv1 = Conv2D(strides = 2, filters=96, kernel_size=(7,7), padding='same', activation='relu',data_format='channels_last')(input_img)
+    poo1 = MaxPool2D((2,2))(conv1)
+    fire2 = fire_model(poo1, 16, 64, 64,'fire2')
+    fire3 = fire_model(fire2, 16, 64, 64,'fire3')
+    fire4 = fire_model(fire3, 32, 128, 128,'fire4')
+    pool2 = MaxPool2D((2,2))(fire4)
+    fire5 = fire_model(pool2, 32, 128, 128,'fire5')
+    fire6 = fire_model(fire5, 48, 192, 192,'fire6')
+    fire7 = fire_model(fire6, 48, 192, 192,'fire7')
+    fire8 = fire_model(fire7, 64, 256, 256,'fire8')
+    pool3 = MaxPool2D((2,2))(fire8)
+    fire9 = fire_model(pool3, 64, 256, 256,'fire9')
+    dropout1 = Dropout(0.5)(fire9)
+    conv10 = Conv2D(kernel_size=(1,1), filters=100, padding='same', activation='relu')(dropout1)
+    gap = GlobalAveragePooling2D()(conv10)
+    out=Dense(nb_classes,activation='softmax')(gap)
+    
+    return Model(inputs=input_img, outputs=out)
 
 if __name__ == "__main__":
-    sq = SqueezeNet(10, inputs=(375, 500, 3))
+    sq = SqueezeNet(10, inputs=(375, 500, 2))
     sq.summary()
-    plot_model(sq, to_file='model.png', show_shapes=True)
+    # plot_model(sq, to_file='model_1d.png', show_shapes=True)
